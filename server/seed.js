@@ -19,12 +19,12 @@ const users = [
     { name: 'George Miller', email: 'george@evora.com', password: 'password123', role: 'user' },
     { name: 'Hannah Montana', email: 'hannah@evora.com', password: 'password123', role: 'user' }
 ];
-
+    
 const events = [
     {
         title: 'React & Node.js Developer Retreat',
         description: 'Join us for a 3-day deep dive into modern full-stack web development. Perfect for developers looking to take their skills to the next level.',
-        date: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000), // 10 days from now
+        date: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
         location: 'Silicon Valley Innovation Center, CA',
         category: 'Technology',
         totalSeats: 200,
@@ -34,7 +34,7 @@ const events = [
     {
         title: 'Neon Nights EDM Festival',
         description: 'Experience an unforgettable night of EDM, techno, and dazzling light shows with top DJs from around the globe.',
-        date: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000), // 20 days from now
+        date: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000),
         location: 'Grand Arena, New York',
         category: 'Music',
         totalSeats: 500,
@@ -44,7 +44,7 @@ const events = [
     {
         title: 'Global Leaders Business Summit',
         description: 'A premium gathering of CEOs, founders, and investors discussing the future of global commerce and AI integration.',
-        date: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000), // 15 days from now
+        date: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
         location: 'The Ritz-Carlton, London',
         category: 'Business',
         totalSeats: 150,
@@ -54,7 +54,7 @@ const events = [
     {
         title: 'Modern Art Expo 2024',
         description: 'Discover breathtaking contemporary and modern arts from underground and trending artists this season.',
-        date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
+        date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
         location: 'Downtown Art Museum',
         category: 'Art',
         totalSeats: 300,
@@ -64,22 +64,82 @@ const events = [
     {
         title: 'Startup Pitch & Pitch Competition',
         description: 'Watch 25 startups pitch for 1 million dollars in seed funding. Great networking for entrepreneurs and angel investors.',
-        date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+        date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         location: 'Convention Center, Miami',
         category: 'Business',
         totalSeats: 250,
-        ticketPrice: 100,
+        ticketPrice: 1000,
         image: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&q=80&w=800'
     },
     {
         title: 'Cloud Computing Architecture Seminar',
         description: 'A purely technical breakdown of scalable cloud solutions, multi-region routing, and serverless compute processing.',
-        date: new Date(Date.now() + 12 * 24 * 60 * 60 * 1000), // 12 days from now
+        date: new Date(Date.now() + 12 * 24 * 60 * 60 * 1000),
         location: 'Tech Hub, Seattle',
         category: 'Technology',
         totalSeats: 100,
         ticketPrice: 600,
         image: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=800'
+    },
+    {
+        title: 'AI & Machine Learning Conference',
+        description: 'Explore the latest advancements in artificial intelligence, machine learning, generative AI, and real-world AI applications with industry experts.',
+        date: new Date(Date.now() + 18 * 24 * 60 * 60 * 1000),
+        location: 'India Expo Centre, Greater Noida',
+        category: 'Technology',
+        totalSeats: 400,
+        ticketPrice: 800,
+        image: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=800'
+    },
+    {
+        title: 'Live Jazz Under the Stars',
+        description: 'Enjoy an enchanting evening of live jazz performances, soulful melodies, talented musicians, and a beautiful outdoor atmosphere.',
+        date: new Date(Date.now() + 22 * 24 * 60 * 60 * 1000),
+        location: 'Central Park Amphitheater, New York',
+        category: 'Music',
+        totalSeats: 350,
+        ticketPrice: 1200,
+        image: 'https://images.unsplash.com/photo-1511192336575-5a79af67a629?auto=format&fit=crop&q=80&w=800'
+    },
+    {
+        title: 'City Marathon & Fitness Expo',
+        description: 'Participate in an exciting community marathon featuring fitness challenges, wellness workshops, professional trainers, and exciting prizes.',
+        date: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000),
+        location: 'Buddh International Circuit, Greater Noida',
+        category: 'Sports',
+        totalSeats: 1000,
+        ticketPrice: 500,
+        image: 'https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&q=80&w=800'
+    },
+    {
+        title: 'Full-Stack Developer Bootcamp',
+        description: 'Build practical web development skills through hands-on sessions covering React, Node.js, Express, MongoDB, REST APIs, and deployment.',
+        date: new Date(Date.now() + 28 * 24 * 60 * 60 * 1000),
+        location: 'Microsoft Office, Noida',
+        category: 'Education',
+        totalSeats: 150,
+        ticketPrice: 999,
+        image: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=800'
+    },
+    {
+        title: 'Street Food Carnival',
+        description: 'Discover delicious street food, regional Indian specialties, live cooking demonstrations, local food vendors, and exciting culinary experiences.',
+        date: new Date(Date.now() + 32 * 24 * 60 * 60 * 1000),
+        location: 'DLF Mall of India, Noida',
+        category: 'Food',
+        totalSeats: 600,
+        ticketPrice: 300,
+        image: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&q=80&w=800'
+    },
+    {
+        title: 'Gaming & Esports Championship',
+        description: 'Experience competitive gaming with exciting esports tournaments, live streaming, gaming challenges, community competitions, and exclusive prizes.',
+        date: new Date(Date.now() + 35 * 24 * 60 * 60 * 1000),
+        location: 'India Expo Mart, Greater Noida',
+        category: 'Entertainment',
+        totalSeats: 500,
+        ticketPrice: 700,
+        image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=800'
     }
 ];
 
