@@ -73,157 +73,126 @@
 
 
 
-
-// // require('dotenv').config();
-
-// // const sendEmail = async ({ to, subject, html, text }) => {
-// //   const apiKey = process.env.RESEND_API_KEY;
-// //   const from = process.env.EMAIL_FROM;
-
-// //   if (!apiKey || !from) {
-// //     throw new Error(
-// //       'Missing RESEND_API_KEY or EMAIL_FROM environment variable.'
-// //     );
-// //   }
-
-// //   const response = await fetch('https://api.resend.com/emails', {
-// //     method: 'POST',
-// //     headers: {
-// //       Authorization: `Bearer ${apiKey}`,
-// //       'Content-Type': 'application/json',
-// //     },
-// //     body: JSON.stringify({
-// //       from,
-// //       to: [to],
-// //       subject,
-// //       html,
-// //       text,
-// //     }),
-// //     signal: AbortSignal.timeout(15000),
-// //   });
-
-// //   const result = await response.json();
-
-// //   if (!response.ok) {
-// //     throw new Error(
-// //       result.message ||
-// //       result.error ||
-// //       `Email API failed with status ${response.status}`
-// //     );
-// //   }
-
-// //   console.log('Email API accepted message:', result.id);
-// //   return result;
-// // };
-
-// // const sendBookingEmail = async (userEmail, userName, eventTitle) => {
-// //   return sendEmail({
-// //     to: userEmail,
-// //     subject: `Booking Confirmed: ${eventTitle}`,
-// //     text: `Hi ${userName}, your booking for ${eventTitle} is confirmed. Thank you for choosing Evora.`,
-// //     html: `
-// //       <div style="font-family: Arial, sans-serif;">
-// //         <h2>Hi ${userName}!</h2>
-// //         <p>Your booking for <strong>${eventTitle}</strong> is confirmed.</p>
-// //         <p>Thank you for choosing Evora.</p>
-// //       </div>
-// //     `,
-// //   });
-// // };
-
-// // const sendOTPEmail = async (userEmail, otp, type) => {
-// //   const isAccountVerification = type === 'account_verification';
-
-// //   const subject = isAccountVerification
-// //     ? 'Verify your Evora Account'
-// //     : 'Evora Booking Verification';
-
-// //   const message = isAccountVerification
-// //     ? 'Use this OTP to verify your Evora account.'
-// //     : 'Use this OTP to verify your event booking.';
-
-// //   return sendEmail({
-// //     to: userEmail,
-// //     subject,
-// //     text: `${message} Your OTP is ${otp}. Do not share it with anyone.`,
-// //     html: `
-// //       <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px;">
-// //         <h2>${subject}</h2>
-// //         <p>${message}</p>
-// //         <div style="font-size: 28px; font-weight: bold; letter-spacing: 5px; padding: 15px;">
-// //           ${otp}
-// //         </div>
-// //         <p>Do not share this OTP with anyone.</p>
-// //       </div>
-// //     `,
-// //   });
-// // };
-
-// // module.exports = {
-// //   sendBookingEmail,
-// //   sendOTPEmail,
-// // };
-
-
-
-
-
-
-
-
-
-
-
 const nodemailer = require('nodemailer');
+const dotenv = require('dotenv');
 
+dotenv.config();
+
+const EMAIL_USER = process.env.EMAIL_USER;
+const EMAIL_PASS = process.env.EMAIL_PASS;
+
+// Configure Gmail SMTP
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
+        user: EMAIL_USER,
+        pass: EMAIL_PASS
     },
     connectionTimeout: 15000,
     greetingTimeout: 10000,
     socketTimeout: 20000
 });
 
-const sendOTPEmail = async (userEmail, otp, type) => {
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-        throw new Error('Email credentials are missing');
+// Common email sender
+const sendEmail = async (mailOptions) => {
+    if (!EMAIL_USER || !EMAIL_PASS) {
+        throw new Error(
+            'EMAIL_USER or EMAIL_PASS is missing from environment variables'
+        );
     }
-
-    const title =
-        type === 'account_verification'
-            ? 'Verify your Evora Account'
-            : 'Evora Booking Verification';
-
-    const msg =
-        type === 'account_verification'
-            ? 'Use this OTP to verify your Evora account.'
-            : 'Use this OTP to verify your event booking.';
 
     try {
         const info = await transporter.sendMail({
-            from: process.env.EMAIL_USER,
-            to: userEmail,
-            subject: title,
-            text: `${msg}\nYour OTP is: ${otp}\nThis code expires in 5 minutes.`,
-            html: `
-                <div style="font-family: Arial, sans-serif; text-align: center;">
-                    <h2>${title}</h2>
-                    <p>${msg}</p>
-                    <h1>${otp}</h1>
-                    <p>This code expires in 5 minutes.</p>
-                </div>
-            `
+            from: `"Evora" <${EMAIL_USER}>`,
+            ...mailOptions
         });
 
-        console.log('OTP email accepted by SMTP:', info.messageId);
+        console.log('Email accepted by SMTP:', info.messageId);
+
         return info;
     } catch (error) {
-        console.error('OTP email failed:', error.message);
+        console.error('Email delivery error:', {
+            message: error.message,
+            code: error.code,
+            responseCode: error.responseCode,
+            command: error.command
+        });
+
+        // Important: pass the error to authController.js
         throw error;
     }
 };
 
-module.exports = { sendOTPEmail };
+// Booking confirmation email
+const sendBookingEmail = async (userEmail, userName, eventTitle) => {
+    return sendEmail({
+        to: userEmail,
+        subject: `Booking Confirmed: ${eventTitle}`,
+        text: `Hi ${userName}, your booking for ${eventTitle} is confirmed. Thank you for choosing Evora.`,
+        html: `
+            <div style="font-family: Arial, sans-serif; padding: 20px;">
+                <h2>Hi ${escapeHtml(userName)}!</h2>
+                <p>Your booking for the event
+                    <strong>${escapeHtml(eventTitle)}</strong>
+                    is successfully confirmed.
+                </p>
+                <p>Thank you for choosing Evora.</p>
+            </div>
+        `
+    });
+};
+
+// OTP verification email
+const sendOTPEmail = async (userEmail, otp, type) => {
+    const isVerification = type === 'account_verification';
+
+    const title = isVerification
+        ? 'Verify your Evora Account'
+        : 'Evora Booking Verification';
+
+    const message = isVerification
+        ? 'Use the following OTP to verify your Evora account.'
+        : 'Use the following OTP to verify your event booking.';
+
+    return sendEmail({
+        to: userEmail,
+        subject: title,
+        text: `${message}\nYour OTP is: ${otp}\nThis code expires in 5 minutes.`,
+        html: `
+            <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px;">
+                <h2 style="color: #111;">${title}</h2>
+                <p style="color: #555; font-size: 16px;">
+                    ${message}
+                </p>
+                <div style="margin: 20px auto; padding: 15px;
+                    font-size: 28px; font-weight: bold;
+                    background: #f4f4f4; letter-spacing: 5px;">
+                    ${escapeHtml(otp)}
+                </div>
+                <p style="color: #999; font-size: 12px;">
+                    If you did not request this code, please ignore this email.
+                </p>
+            </div>
+        `
+    });
+};
+
+// Escape dynamic text before inserting into HTML
+function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, (char) => {
+        const entities = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        };
+
+        return entities[char];
+    });
+}
+
+module.exports = {
+    sendBookingEmail,
+    sendOTPEmail
+};
