@@ -100,17 +100,14 @@
 
 
 
-
-
 const User = require('../models/User');
 const OTP = require('../models/OTP');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { sendOTPEmail } = require('../utils/email');
 
-const generateOTP = () => {
-    return Math.floor(100000 + Math.random() * 900000).toString();
-};
+const generateOTP = () =>
+    Math.floor(100000 + Math.random() * 900000).toString();
 
 const generateToken = (id, role) => {
     if (!process.env.JWT_SECRET) {
@@ -124,46 +121,77 @@ const generateToken = (id, role) => {
     );
 };
 
-// REGISTER USER
-exports.register = async (req, res) => {
-    let createdUser;
-    let createdOTP;
+const normalizeEmail = (email) =>
+    typeof email === 'string' ? email.trim().toLowerCase() : '';
+
+const createVerificationOTP = async (email) => {
+    // Remove any previous verification codes.
+    await OTP.deleteMany({
+        email,
+        action: 'account_verification'
+    });
+
+    const otp = generateOTP();
+
+    const savedOTP = await OTP.create({
+        email,
+        otp,
+        action: 'account_verification'
+    });
 
     try {
-        const { name, email, password } = req.body;
+        await sendOTPEmail(
+            email,
+            otp,
+            'account_verification'
+        );
+    } catch (error) {
+        // Do not leave an unusable OTP after a failed email attempt.
+        await OTP.deleteOne({ _id: savedOTP._id }).catch(
+            (cleanupError) => {
+                console.error(
+                    'OTP cleanup failed:',
+                    cleanupError.message
+                );
+            }
+        );
 
-        if (!name || !email || !password) {
+        throw error;
+    }
+};
+
+// REGISTER
+exports.register = async (req, res) => {
+    try {
+        const { name, password } = req.body;
+        const email = normalizeEmail(req.body.email);
+
+        if (
+            typeof name !== 'string' ||
+            !name.trim() ||
+            !email ||
+            typeof password !== 'string'
+        ) {
             return res.status(400).json({
                 message: 'Name, email and password are required'
             });
         }
 
-        const normalizedEmail = email.trim().toLowerCase();
-
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
-            return res.status(400).json({
-                message: 'Please enter a valid email address'
-            });
-        }
-
         if (password.length < 8) {
             return res.status(400).json({
-                message: 'Password must be at least 8 characters long'
+                message: 'Password must be at least 8 characters'
             });
         }
 
-        const existingUser = await User.findOne({
-            email: normalizedEmail
-        });
+        let user = await User.findOne({ email });
 
-        if (existingUser) {
-            if (!existingUser.isVerified &&
-                existingUser.role !== 'admin') {
+        if (user) {
+            if (!user.isVerified && user.role !== 'admin') {
                 return res.status(409).json({
                     message:
                         'Account already exists but is not verified. Please log in to request a new OTP.',
                     needsVerification: true,
-                    email: normalizedEmail
+                    email
                 });
             }
 
@@ -174,64 +202,46 @@ exports.register = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Never accept a role supplied by the frontend.
-        createdUser = await User.create({
+        user = await User.create({
             name: name.trim(),
-            email: normalizedEmail,
+            email,
             password: hashedPassword,
             role: 'user',
             isVerified: false
         });
 
-        const otp = generateOTP();
+        try {
+            await createVerificationOTP(email);
+        } catch (emailError) {
+            console.error('Registration OTP failed:', {
+                message: emailError.message,
+                code: emailError.code,
+                responseCode: emailError.responseCode
+            });
 
-        createdOTP = await OTP.create({
-            email: normalizedEmail,
-            otp,
-            action: 'account_verification'
-        });
-
-        // This function must throw when SMTP delivery fails.
-        await sendOTPEmail(
-            normalizedEmail,
-            otp,
-            'account_verification'
-        );
+            return res.status(502).json({
+                message:
+                    'Your account was created, but the verification email could not be sent. Please log in to retry.',
+                needsVerification: true,
+                email
+            });
+        }
 
         return res.status(201).json({
             message: 'OTP sent to email. Please verify your account.',
-            email: normalizedEmail,
+            email,
             needsVerification: true
         });
 
     } catch (error) {
-        console.error('Registration error:', error.message);
-
-        // Remove only the OTP created by this request.
-        // Keep the unverified user so that OTP can be resent via login.
-        if (createdOTP) {
-            try {
-                await OTP.deleteOne({ _id: createdOTP._id });
-            } catch (cleanupError) {
-                console.error(
-                    'OTP cleanup failed:',
-                    cleanupError.message
-                );
-            }
-        }
+        console.error('Registration error:', {
+            message: error.message,
+            code: error.code
+        });
 
         if (error.code === 11000) {
             return res.status(409).json({
                 message: 'An account with this email already exists'
-            });
-        }
-
-        if (createdUser) {
-            return res.status(502).json({
-                message:
-                    'Account was created, but OTP email delivery failed. Please log in to request another OTP.',
-                needsVerification: true,
-                email: createdUser.email
             });
         }
 
@@ -241,76 +251,42 @@ exports.register = async (req, res) => {
     }
 };
 
-
-// LOGIN USER
+// LOGIN
 exports.login = async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { password } = req.body;
+        const email = normalizeEmail(req.body.email);
 
-        if (!email || !password) {
+        if (!email || typeof password !== 'string') {
             return res.status(400).json({
                 message: 'Email and password are required'
             });
         }
 
-        const normalizedEmail = email.trim().toLowerCase();
+        const user = await User.findOne({ email });
 
-        const user = await User.findOne({
-            email: normalizedEmail
-        });
-
-        if (!user) {
-            return res.status(401).json({
-                message: 'Invalid email or password'
-            });
-        }
-
-        const isMatch = await bcrypt.compare(
-            password,
-            user.password
-        );
-
-        if (!isMatch) {
+        if (
+            !user ||
+            !(await bcrypt.compare(password, user.password))
+        ) {
             return res.status(401).json({
                 message: 'Invalid email or password'
             });
         }
 
         if (!user.isVerified && user.role !== 'admin') {
-            // Remove the previous verification OTP.
-            await OTP.deleteMany({
-                email: user.email,
-                action: 'account_verification'
-            });
-
-            const otp = generateOTP();
-
-            await OTP.create({
-                email: user.email,
-                otp,
-                action: 'account_verification'
-            });
-
             try {
-                await sendOTPEmail(
-                    user.email,
-                    otp,
-                    'account_verification'
-                );
+                await createVerificationOTP(user.email);
             } catch (emailError) {
-                console.error(
-                    'Login OTP delivery failed:',
-                    emailError.message
-                );
-
-                await OTP.deleteMany({
-                    email: user.email,
-                    action: 'account_verification'
+                console.error('Login OTP failed:', {
+                    message: emailError.message,
+                    code: emailError.code,
+                    responseCode: emailError.responseCode
                 });
 
                 return res.status(502).json({
                     message:
-                        'Your account is not verified and OTP delivery failed. Please try again later.',
+                        'Your account is not verified, and the OTP email could not be sent. Please try again later.',
                     needsVerification: true,
                     email: user.email
                 });
@@ -318,7 +294,7 @@ exports.login = async (req, res) => {
 
             return res.status(403).json({
                 message:
-                    'Your account is not verified. A new OTP has been sent to your email.',
+                    'Account not verified. A new OTP has been sent.',
                 needsVerification: true,
                 email: user.email
             });
@@ -341,23 +317,19 @@ exports.login = async (req, res) => {
     }
 };
 
-
 // VERIFY OTP
 exports.verifyOTP = async (req, res) => {
     try {
-        const { email, otp } = req.body;
+        const email = normalizeEmail(req.body.email);
+        const otp = String(req.body.otp || '').trim();
 
-        if (!email || !otp) {
+        if (!email || !/^\d{6}$/.test(otp)) {
             return res.status(400).json({
-                message: 'Email and OTP are required'
+                message: 'A valid email and six-digit OTP are required'
             });
         }
 
-        const normalizedEmail = email.trim().toLowerCase();
-
-        const user = await User.findOne({
-            email: normalizedEmail
-        });
+        const user = await User.findOne({ email });
 
         if (!user) {
             return res.status(404).json({
@@ -372,8 +344,8 @@ exports.verifyOTP = async (req, res) => {
         }
 
         const validOTP = await OTP.findOne({
-            email: normalizedEmail,
-            otp: String(otp).trim(),
+            email,
+            otp,
             action: 'account_verification'
         });
 
@@ -387,7 +359,7 @@ exports.verifyOTP = async (req, res) => {
         await user.save();
 
         await OTP.deleteMany({
-            email: normalizedEmail,
+            email,
             action: 'account_verification'
         });
 
