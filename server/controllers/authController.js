@@ -24,8 +24,7 @@ exports.register = async (req, res) => {
             email,
             password: hashedPassword,
             role: 'user', // Hardcoded to prevent frontend passing role
-            isVerified: true
-            // isVerified: false
+            isVerified: false
         });
 
         const otp = generateOTP();
